@@ -55,20 +55,21 @@ cgVar (Loc i)  = loc i
 cgVar (Glob n) = name n
 
 cgBody :: Int -> (String -> String) -> SExp -> String
-cgBody _ ret (SV (Glob f))          = ret $ name f ++ "()"
-cgBody _ ret (SV (Loc i))           = ret $ loc i
-cgBody _ ret (SApp _ f vs)          = ret $ name f ++ "(" ++ showSep ", " (map cgVar vs) ++ ")"
-cgBody l ret (SLet (Loc i) e1 e2)   = cgBody l (\s -> "var " ++ loc i ++ " = " ++ s ++ ";") e1 ++ cr l ++
-                                      cgBody l ret e2
+cgBody _ ret (SV (Glob f))        = ret $ name f ++ "()"
+cgBody _ ret (SV (Loc i))         = ret $ loc i
+cgBody _ ret (SApp _ f vs)        = ret $ name f ++ "(" ++ showSep ", " (map cgVar vs) ++ ")"
+cgBody l ret (SLet (Loc i) e1 e2) = cgBody l (\s -> "var " ++ loc i ++ " = " ++ s ++ ";") e1 ++ cr l ++
+                                    cgBody l ret e2
 -- cgBody l r (SUpdate _ e)
 -- cgBody l r (SProj v i)
-cgBody _ ret (SCon _ t _ vs)        = ret $ "[" ++ showSep ", " (show t : map cgVar vs) ++ "]"
-cgBody l ret (SCase _ v as)         = cgSwitch l ret v as
-cgBody l ret (SChkCase v as)        = cgSwitch l ret v as
-cgBody _ ret (SConst c)             = ret $ cgConst c
-cgBody _ ret (SOp o vs)             = ret $ cgOp o (map cgVar vs)
-cgBody _ ret SNothing               = ret "0"
-cgBody l _ s                        = "// " ++ show s ++ cr l
+cgBody _ ret (SCon _ t _ vs)      = ret $ "[" ++ showSep ", " (show t : map cgVar vs) ++ "]"
+cgBody l ret (SCase _ v as)       = cgSwitch l ret v as
+cgBody l ret (SChkCase v as)      = cgSwitch l ret v as
+cgBody _ ret (SConst c)           = ret $ cgConst c
+cgBody _ ret (SOp o vs)           = ret $ cgOp o (map cgVar vs)
+cgBody _ ret SNothing             = ret "0"
+-- cgBody l r (SError x)
+cgBody _ _ x                      = error $ "Expression " ++ show x ++ " is not supported"
 
 cgSwitch :: Int -> (String -> String) -> LVar -> [SAlt] -> String
 cgSwitch l ret v cs = let
