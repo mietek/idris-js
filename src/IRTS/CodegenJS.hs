@@ -34,6 +34,9 @@ cr l = "\n" ++ concat (replicate l "  ")
 loc :: Int -> String
 loc i = "loc" ++ show i
 
+ret :: String
+ret = "_R"
+
 cgVar :: LVar -> String
 cgVar (Loc i)  = loc i
 cgVar (Glob n) = name n
@@ -43,47 +46,52 @@ cgFun n args def =
     "function " ++ name n ++ "(" ++ showSep ", " (map loc is) ++ ") {" ++ cr 1 ++
     cgBody 1 ret def ++ "\n}\n\n"
   where
-    is    = [0..length args]
-    ret s = "return " ++ s ++ ";"
+    is = [0..length args]
 
-cgBody :: Int -> (String -> String) -> SExp -> String
-cgBody _ ret (SV (Glob f))        = ret $ name f ++ "()"
-cgBody _ ret (SV (Loc i))         = ret $ loc i
-cgBody _ ret (SApp _ f vs)        = ret $ name f ++ "(" ++ showSep ", " (map cgVar vs) ++ ")"
-cgBody l ret (SLet (Loc i) e1 e2) = cgBody l (\s -> "var " ++ loc i ++ " = " ++ s ++ ";") e1 ++ cr l ++
-                                    cgBody l ret e2
+cgBody :: Int -> String -> SExp -> String
+cgBody l r (SV (Glob f))        = name f ++ "();" ++
+                                  cgRet l r
+cgBody _ r (SV (Loc i))         = r ++ " = " ++ loc i ++ ";"
+cgBody l r (SApp _ f vs)        = name f ++ "(" ++ showSep ", " (map cgVar vs) ++ ");" ++
+                                  cgRet l r
+cgBody l r (SLet (Loc i) e1 e2) = cgBody l ("var " ++ loc i) e1 ++ cr l ++
+                                  cgBody l r e2
 -- cgBody l r (SUpdate _ e)
 -- cgBody l r (SProj v i)
-cgBody _ ret (SCon _ t _ vs)      = ret $ "[" ++ showSep ", " (show t : map cgVar vs) ++ "]"
-cgBody l ret (SCase _ v cs)       = cgSwitch l ret v cs
-cgBody l ret (SChkCase v cs)      = cgSwitch l ret v cs
-cgBody _ ret (SConst c)           = ret $ cgConst c
-cgBody _ ret (SOp o vs)           = ret $ cgOp o (map cgVar vs)
-cgBody _ ret SNothing             = ret "0"
+cgBody _ r (SCon _ t _ vs)      = r ++ " = " ++ "[" ++ showSep ", " (show t : map cgVar vs) ++ "];"
+cgBody l r (SCase _ v cs)       = cgSwitch l r v cs
+cgBody l r (SChkCase v cs)      = cgSwitch l r v cs
+cgBody _ r (SConst c)           = r ++ " = " ++ cgConst c ++ ";"
+cgBody _ r (SOp o vs)           = r ++ " = " ++ cgOp o (map cgVar vs) ++ ";"
+cgBody _ r SNothing             = r ++ " = 0;"
 -- cgBody l r (SError x)
-cgBody _ _ x                      = error $ "Expression " ++ show x ++ " is not supported"
+cgBody _ _ x                    = error $ "Expression " ++ show x ++ " is not supported"
 
-cgSwitch :: Int -> (String -> String) -> LVar -> [SAlt] -> String
-cgSwitch l ret v cs =
+cgRet :: Int -> String -> String
+cgRet l r | r == ret  = ""
+          | otherwise = cr l ++ r ++ " = " ++ ret ++ ";"
+
+cgSwitch :: Int -> String -> LVar -> [SAlt] -> String
+cgSwitch l r v cs =
     let
       v'  = cgVar v
       v'' = if any isConCase cs then v' ++ "[0]" else v'
     in
       "switch (" ++ v'' ++ ") {" ++ cr (l + 1) ++
-      showSep (cr (l + 2) ++ "break;" ++ cr (l + 1)) (map (cgCase (l + 2) ret v') cs) ++ cr l ++
+      showSep (cr (l + 2) ++ "break;" ++ cr (l + 1)) (map (cgCase (l + 2) r v') cs) ++ cr l ++
       "}"
   where
     isConCase (SConCase _ _ _ _ _) = True
     isConCase _                    = False
 
-cgCase :: Int -> (String -> String) -> String -> SAlt -> String
-cgCase l ret _ (SDefaultCase e)        = "default:" ++ cr l ++
-                                         cgBody l ret e
-cgCase l ret _ (SConstCase t e)        = "case " ++ show t ++ ":" ++ cr l ++
-                                         cgBody l ret e
-cgCase l ret v (SConCase i0 t _ ns0 e) = "case " ++ show t ++ ":" ++ cr l ++
-                                         project 1 i0 ns0 ++
-                                         cgBody l ret e
+cgCase :: Int -> String -> String -> SAlt -> String
+cgCase l r _ (SDefaultCase e)        = "default:" ++ cr l ++
+                                       cgBody l r e
+cgCase l r _ (SConstCase t e)        = "case " ++ show t ++ ":" ++ cr l ++
+                                       cgBody l r e
+cgCase l r v (SConCase i0 t _ ns0 e) = "case " ++ show t ++ ":" ++ cr l ++
+                                       project 1 i0 ns0 ++
+                                       cgBody l r e
   where
     project :: Int -> Int -> [Name] -> String
     project _ _ []       = ""

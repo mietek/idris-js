@@ -2,6 +2,8 @@
 
 'use strict';
 
+var _R; // Return register
+
 function idris_error(s) {
   throw s;
 }
