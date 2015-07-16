@@ -40,10 +40,10 @@ cgVar (Glob n) = name n
 
 cgFun :: Name -> [Name] -> SExp -> String
 cgFun n args def =
-    "function " ++ name n ++ "(" ++ showSep ", " (map loc [0..a]) ++ ") {" ++ cr 1 ++
+    "function " ++ name n ++ "(" ++ showSep ", " (map loc is) ++ ") {" ++ cr 1 ++
     cgBody 1 ret def ++ "\n}\n\n"
   where
-    a     = length args
+    is    = [0..length args]
     ret s = "return " ++ s ++ ";"
 
 cgBody :: Int -> (String -> String) -> SExp -> String
@@ -64,13 +64,14 @@ cgBody _ ret SNothing             = ret "0"
 cgBody _ _ x                      = error $ "Expression " ++ show x ++ " is not supported"
 
 cgSwitch :: Int -> (String -> String) -> LVar -> [SAlt] -> String
-cgSwitch l ret v cs = let
-                        v'  = cgVar v
-                        v'' = if any isConCase cs then v' ++ "[0]" else v'
-                      in
-                        "switch (" ++ v'' ++ ") {" ++ cr (l + 1) ++
-                        showSep (cr (l + 2) ++ "break;" ++ cr (l + 1)) (map (cgCase (l + 2) ret v') cs) ++ cr l ++
-                        "}"
+cgSwitch l ret v cs =
+    let
+      v'  = cgVar v
+      v'' = if any isConCase cs then v' ++ "[0]" else v'
+    in
+      "switch (" ++ v'' ++ ") {" ++ cr (l + 1) ++
+      showSep (cr (l + 2) ++ "break;" ++ cr (l + 1)) (map (cgCase (l + 2) ret v') cs) ++ cr l ++
+      "}"
   where
     isConCase (SConCase _ _ _ _ _) = True
     isConCase _                    = False
