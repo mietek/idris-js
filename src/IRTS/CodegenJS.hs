@@ -81,13 +81,13 @@ cgCase l ret _ (SDefaultCase e)        = "default:" ++ cr l ++
                                          cgBody l ret e
 cgCase l ret _ (SConstCase t e)        = "case " ++ show t ++ ":" ++ cr l ++
                                          cgBody l ret e
-cgCase l ret v (SConCase i0 t _ ns0 e) = "case " ++ show t ++ ":" ++
-                                         project 1 i0 ns0 ++ cr l ++
+cgCase l ret v (SConCase i0 t _ ns0 e) = "case " ++ show t ++ ":" ++ cr l ++
+                                         project 1 i0 ns0 ++
                                          cgBody l ret e
   where
     project :: Int -> Int -> [Name] -> String
     project _ _ []       = ""
-    project k i (_ : ns) = cr l ++ "var " ++ loc i ++ " = " ++ v ++ "[" ++ show k ++ "];" ++
+    project k i (_ : ns) = "var " ++ loc i ++ " = " ++ v ++ "[" ++ show k ++ "];" ++ cr l ++
                            project (k + 1) (i + 1) ns
 
 cgConst :: Const -> String
@@ -100,9 +100,9 @@ cgConst x | isTypeConst x = "0"
           | otherwise     = error $ "Constant " ++ show x ++ " is not supported"
 
 cgOp :: PrimFn -> [String] -> String
-cgOp (LPlus  (ATInt _)) [n, m] = "(" ++ n ++ " + " ++ m ++ ")"
-cgOp (LMinus (ATInt _)) [n, m] = "(" ++ n ++ " - " ++ m ++ ")"
-cgOp (LTimes (ATInt _)) [n, m] = "(" ++ n ++ " * " ++ m ++ ")"
+cgOp (LPlus  (ATInt _)) [n, m] = "(" ++ n ++ " + "   ++ m ++ ")"
+cgOp (LMinus (ATInt _)) [n, m] = "(" ++ n ++ " - "   ++ m ++ ")"
+cgOp (LTimes (ATInt _)) [n, m] = "(" ++ n ++ " * "   ++ m ++ ")"
 -- cgOp LUDiv
 -- cgOp LSDiv
 -- cgOp LURem
@@ -119,20 +119,20 @@ cgOp (LEq    (ATInt _)) [n, m] = "(" ++ n ++ " === " ++ m ++ " ? 1 : 0)"
 -- cgOp LLe
 -- cgOp LGt
 -- cgOp LGe
-cgOp (LSLt   (ATInt _)) [n, m] = "(" ++ n ++ " < "  ++ m ++ ")"
-cgOp (LSLe   (ATInt _)) [n, m] = "(" ++ n ++ " <= " ++ m ++ ")"
-cgOp (LSGt   (ATInt _)) [n, m] = "(" ++ n ++ " > "  ++ m ++ ")"
-cgOp (LSGe   (ATInt _)) [n, m] = "(" ++ n ++ " >= " ++ m ++ ")"
-cgOp (LSExt  _ _)       [n]    = n
+cgOp (LSLt   (ATInt _)) [n, m] = "(" ++ n ++ " < "   ++ m ++ ")"
+cgOp (LSLe   (ATInt _)) [n, m] = "(" ++ n ++ " <= "  ++ m ++ ")"
+cgOp (LSGt   (ATInt _)) [n, m] = "(" ++ n ++ " > "   ++ m ++ ")"
+cgOp (LSGe   (ATInt _)) [n, m] = "(" ++ n ++ " >= "  ++ m ++ ")"
+cgOp (LSExt  _ _)       [n]    =        n
 -- cgOp LZExt
 -- cgOp LTrunc
 cgOp LStrConcat         [s, t] = "(" ++ s ++ " + "   ++ t ++ ")"
 cgOp LStrLt             [s, t] = "(" ++ s ++ " < "   ++ t ++ ")"
 cgOp LStrEq             [s, t] = "(" ++ s ++ " === " ++ t ++ " ? 1 : 0)"
-cgOp LStrLen            [s]    = s ++ ".length"
+cgOp LStrLen            [s]    =        s ++ ".length"
 -- cgOp LIntFloat
 -- cgOp LFloatInt
-cgOp (LIntStr _)        [x]    = "('' + " ++ x ++ ")"
+cgOp (LIntStr _)        [n]    = "('' + " ++ n ++ ")"
 -- cgOp LStrInt
 -- cgOp LFloatStr
 -- cgOp LStrFloat
