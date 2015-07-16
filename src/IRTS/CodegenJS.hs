@@ -32,7 +32,7 @@ cr :: Int -> String
 cr l = "\n" ++ concat (replicate l "  ")
 
 loc :: Int -> String
-loc i = "loc" ++ show i
+loc i = "_S[_SP + " ++ show i ++ "]"
 
 ret :: String
 ret = "_R"
@@ -42,19 +42,22 @@ cgVar (Loc i)  = loc i
 cgVar (Glob n) = name n
 
 cgFun :: Name -> [Name] -> SExp -> String
-cgFun n args def =
-    "function " ++ name n ++ "(" ++ showSep ", " (map loc is) ++ ") {" ++ cr 1 ++
+cgFun n _args def =
+    "function " ++ name n ++ "() {" ++ cr 1 ++
     cgBody 1 ret def ++ "\n}\n\n"
-  where
-    is = [0..length args]
 
 cgBody :: Int -> String -> SExp -> String
-cgBody l r (SV (Glob f))        = name f ++ "();" ++
+cgBody l r (SV (Glob f))        = "idris_pushFrame();" ++ cr l ++
+                                  name f ++ "();" ++ cr l ++
+                                  "idris_popFrame();" ++
                                   cgRet l r
 cgBody _ r (SV (Loc i))         = r ++ " = " ++ loc i ++ ";"
-cgBody l r (SApp _ f vs)        = name f ++ "(" ++ showSep ", " (map cgVar vs) ++ ");" ++
+cgBody l r (SApp _ f vs)        = "idris_pushFrame(" ++ showSep ", " (map cgVar vs) ++ ");" ++ cr l ++
+                                  name f ++ "();" ++ cr l ++
+                                  "idris_popFrame();" ++
                                   cgRet l r
-cgBody l r (SLet (Loc i) e1 e2) = cgBody l ("var " ++ loc i) e1 ++ cr l ++
+cgBody l r (SLet (Loc i) e1 e2) = "idris_growFrame(" ++ show i ++ ");" ++ cr l ++
+                                  cgBody l (loc i) e1 ++ cr l ++
                                   cgBody l r e2
 -- cgBody l r (SUpdate _ e)
 -- cgBody l r (SProj v i)
@@ -95,7 +98,8 @@ cgCase l r v (SConCase i0 t _ ns0 e) = "case " ++ show t ++ ":" ++ cr l ++
   where
     project :: Int -> Int -> [Name] -> String
     project _ _ []       = ""
-    project k i (_ : ns) = "var " ++ loc i ++ " = " ++ v ++ "[" ++ show k ++ "];" ++ cr l ++
+    project k i (_ : ns) = "idris_growFrame(" ++ show i ++ ");" ++ cr l ++
+                           loc i ++ " = " ++ v ++ "[" ++ show k ++ "];" ++ cr l ++
                            project (k + 1) (i + 1) ns
 
 cgConst :: Const -> String
