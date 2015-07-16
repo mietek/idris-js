@@ -40,9 +40,12 @@ function idris_growFrame(i) {
 
 function idris_makeArray() {
   _R = _AP;
+  // var log = '' + _AP;
   for (var i = 0; i < arguments.length; i += 1, _AP += 1) {
     _A[_AP] = arguments[i];
+    // log += ' ' + arguments[i];
   }
+  // console.log(log);
 }
 
 
