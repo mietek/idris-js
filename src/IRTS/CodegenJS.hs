@@ -30,7 +30,7 @@ name n =
 
 cgFun :: Name -> [Name] -> SExp -> String
 cgFun n args def =
-    "function " ++ name n ++ "(" ++ showSep ", " (map arg [0..a]) ++ ") {" ++
+    "function " ++ name n ++ "(" ++ showSep ", " (map arg [0..a]) ++ ") {" ++ cr 1 ++
     cgArgs a ++
     cgBody 1 ret def ++ "\n}\n\n"
   where
@@ -40,7 +40,7 @@ cgFun n args def =
 
 cgArgs :: Int -> String
 cgArgs 0 = ""
-cgArgs a = cr 1 ++ showSep (cr 1) (map arg [0..a]) ++ cr 1
+cgArgs a = showSep (cr 1) (map arg [0..a]) ++ cr 1
   where
     arg i = "var " ++ loc i ++ " = arg" ++ show i ++ ";"
 
