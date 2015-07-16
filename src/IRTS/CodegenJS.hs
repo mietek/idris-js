@@ -55,8 +55,8 @@ cgBody l ret (SLet (Loc i) e1 e2) = cgBody l (\s -> "var " ++ loc i ++ " = " ++ 
 -- cgBody l r (SUpdate _ e)
 -- cgBody l r (SProj v i)
 cgBody _ ret (SCon _ t _ vs)      = ret $ "[" ++ showSep ", " (show t : map cgVar vs) ++ "]"
-cgBody l ret (SCase _ v as)       = cgSwitch l ret v as
-cgBody l ret (SChkCase v as)      = cgSwitch l ret v as
+cgBody l ret (SCase _ v cs)       = cgSwitch l ret v cs
+cgBody l ret (SChkCase v cs)      = cgSwitch l ret v cs
 cgBody _ ret (SConst c)           = ret $ cgConst c
 cgBody _ ret (SOp o vs)           = ret $ cgOp o (map cgVar vs)
 cgBody _ ret SNothing             = ret "0"
