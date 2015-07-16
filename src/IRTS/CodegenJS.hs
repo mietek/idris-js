@@ -13,7 +13,7 @@ codegenJS ci = do
     preludeName <- getDataFileName "prelude.js"
     prelude <- readFile preludeName
     writeFile (outputFile ci) $
-      prelude ++ "\n" ++
+      prelude ++ "\n\n" ++
       concatMap doCodegen (simpleDecls ci) ++
       name (sMN 0 "runMain") ++ "();\n"
 
@@ -44,7 +44,7 @@ cgVar (Glob n) = name n
 cgFun :: Name -> [Name] -> SExp -> String
 cgFun n _args def =
     "function " ++ name n ++ "() {" ++ cr 1 ++
-    cgBody 1 ret def ++ "\n}\n\n"
+    cgBody 1 ret def ++ "\n}\n\n\n"
 
 cgBody :: Int -> String -> SExp -> String
 cgBody l r (SV (Glob f))        = "idris_pushFrame();" ++ cr l ++
