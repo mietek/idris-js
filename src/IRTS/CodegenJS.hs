@@ -61,7 +61,8 @@ cgBody l r (SLet (Loc i) e1 e2) = "idris_growFrame(" ++ show i ++ ");" ++ cr l +
                                   cgBody l r e2
 -- cgBody l r (SUpdate _ e)
 -- cgBody l r (SProj v i)
-cgBody _ r (SCon _ t _ vs)      = r ++ " = " ++ "[" ++ showSep ", " (show t : map cgVar vs) ++ "];"
+cgBody l r (SCon _ t _ vs)      = "idris_makeArray(" ++ showSep ", " (show t : map cgVar vs) ++ ");" ++
+                                  cgRet l r
 cgBody l r (SCase _ v cs)       = cgSwitch l r v cs
 cgBody l r (SChkCase v cs)      = cgSwitch l r v cs
 cgBody _ r (SConst c)           = r ++ " = " ++ cgConst c ++ ";"
@@ -78,7 +79,7 @@ cgSwitch :: Int -> String -> LVar -> [SAlt] -> String
 cgSwitch l r v cs =
     let
       v'  = cgVar v
-      v'' = if any isConCase cs then v' ++ "[0]" else v'
+      v'' = if any isConCase cs then "_A[" ++ v' ++ "]" else v'
     in
       "switch (" ++ v'' ++ ") {" ++ cr (l + 1) ++
       showSep (cr (l + 2) ++ "break;" ++ cr (l + 1)) (map (cgCase (l + 2) r v') cs) ++ cr l ++
@@ -99,7 +100,7 @@ cgCase l r v (SConCase i0 t _ ns0 e) = "case " ++ show t ++ ":" ++ cr l ++
     project :: Int -> Int -> [Name] -> String
     project _ _ []       = ""
     project k i (_ : ns) = "idris_growFrame(" ++ show i ++ ");" ++ cr l ++
-                           loc i ++ " = " ++ v ++ "[" ++ show k ++ "];" ++ cr l ++
+                           loc i ++ " = _A[" ++ v ++ " + " ++ show k ++ "];" ++ cr l ++
                            project (k + 1) (i + 1) ns
 
 cgConst :: Const -> String

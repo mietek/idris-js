@@ -9,6 +9,9 @@ var _SP  = 0;  // Beginning of current stack frame
 var _SQ  = 0;  // End of current stack frame
 var _PSP = []; // Beginnings of previous stack frames
 
+var _A  = []; // Array frame data
+var _AP = 0;  // Beginning of current array frame
+
 function idris_pushFrame() {
   _PSP.push(_SP);
   _SP = _SQ;
@@ -24,6 +27,13 @@ function idris_popFrame() {
 
 function idris_growFrame(i) {
   _SQ = Math.max(_SQ, _SP + i);
+}
+
+function idris_makeArray() {
+  _R = _AP;
+  for (var i = 0; i < arguments.length; i += 1, _AP += 1) {
+    _A[_AP] = arguments[i];
+  }
 }
 
 function idris_error(s) {
