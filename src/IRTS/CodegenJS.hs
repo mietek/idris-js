@@ -168,7 +168,7 @@ cgOp (LIntStr _)        [n]    = "('' + " ++ n ++ ")"
 -- cgOp LStrTail
 -- cgOp LStrCons
 -- cgOp LStrIndex
-cgOp LStrRev            [s]    = "idris_reverseStr(" ++ s ++ ")"
+-- cgOp LStrRev
 -- cgOp LReadStr
 cgOp LWriteStr          [_, s] = "idris_writeStr(" ++ s ++ ")"
 -- cgOp LSystemInfo
