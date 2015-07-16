@@ -1,0 +1,24 @@
+name:               idris-js
+version:            1.0
+build-type:         Simple
+cabal-version:      >= 1.20
+license:            MIT
+copyright:          Copyright © 2015 Miëtek Bak
+author:             Miëtek Bak <hello@mietek.io>
+maintainer:         Miëtek Bak <hello@mietek.io>
+stability:          experimental
+homepage:           https://github.com/mietek/idris-js
+license-file:       LICENSE.md
+extra-source-files: README.md
+data-files:         prelude.js
+synopsis:           Toy JavaScript backend for Idris
+
+executable idris-js
+  main-is:            Main.hs
+  other-modules:      IRTS.CodegenJS
+  hs-source-dirs:     src
+  default-language:   Haskell2010
+  ghc-options:        -O2 -Wall -threaded -rtsopts -funbox-strict-fields
+  ghc-prof-options:   -auto-all -caf-all
+  build-depends:      base >= 4 && < 5,
+                      idris
