@@ -133,7 +133,7 @@ makeArray :: Int -> String -> [String] -> String
 makeArray l r args =
     makeElements ++
     r ++ " = _AP;" ++
-    cr l ++ "console.log(_AP, " ++ showSep (", ") args ++ ");" ++
+    -- cr l ++ "console.log(_AP, " ++ showSep (", ") args ++ ");" ++
     pushArray
   where
     argCount = length args
