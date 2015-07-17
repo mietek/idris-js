@@ -1,4 +1,4 @@
-/* jshint -W027, unused:false */
+/* jshint unused:false */
 
 'use strict';
 
