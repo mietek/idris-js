@@ -14,17 +14,6 @@ var _A  = []; // Array frame data
 var _AP = 0;  // Beginning of current array frame
 
 
-function idris_makeArray() {
-  _R = _AP;
-  // var log = '' + _AP;
-  for (var i = 0; i < arguments.length; i += 1, _AP += 1) {
-    _A[_AP] = arguments[i];
-    // log += ' ' + arguments[i];
-  }
-  // console.log(log);
-}
-
-
 function idris_error(s) {
   throw s;
 }
