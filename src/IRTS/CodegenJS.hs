@@ -1,6 +1,9 @@
 module IRTS.CodegenJS (codegenJS) where
 
 import Data.Char
+import Data.IntMap.Strict (IntMap)
+import qualified Data.IntMap.Strict as M
+import Data.List
 import IRTS.CodegenCommon
 import IRTS.Lang
 import IRTS.Simplified
@@ -8,18 +11,48 @@ import Idris.Core.TT
 
 import Paths_idris_js
 
+type TagMap = IntMap Int
+
 codegenJS :: CodeGenerator
 codegenJS ci = do
     preludeName <- getDataFileName "prelude.js"
     prelude <- readFile preludeName
+    let tm = findTags ci
     writeFile (outputFile ci) $
       prelude ++ "\n\n" ++
-      concatMap doCodegen (simpleDecls ci) ++
+      cgTags tm ++ "\n\n" ++
+      concatMap (doCodegen tm) (simpleDecls ci) ++
       name (sMN 0 "runMain") ++ "();\n"
 
-doCodegen :: (Name, SDecl) -> String
-doCodegen (n, SFun _ args _ e) =
-    cgFun n (length args) e
+findTags :: CodegenInfo -> TagMap
+findTags ci = M.fromAscList (zip ts [0..])
+  where
+    ts = nub (sort (concatMap ftFun (simpleDecls ci)))
+
+ftFun :: (Name, SDecl) -> [Int]
+ftFun (_, SFun _ _ _ e) = ftExp e
+
+ftExp :: SExp -> [Int]
+ftExp (SLet (Loc _) e1 e2) = ftExp e1 ++ ftExp e2
+ftExp (SCase _ _ cs)       = concatMap ftCase cs
+ftExp (SChkCase _ cs)      = concatMap ftCase cs
+ftExp (SCon _ t _ [])      = [t]
+ftExp _                    = []
+
+ftCase :: SAlt -> [Int]
+ftCase (SDefaultCase e)     = ftExp e
+ftCase (SConstCase _ e)     = ftExp e
+ftCase (SConCase _ _ _ _ e) = ftExp e
+
+cgTags :: TagMap -> String
+cgTags tm = showSep "\n" (map tag (M.toAscList tm)) ++ "\n" ++
+            "_AP = " ++ show (M.size tm) ++ ";\n"
+  where
+    tag (t, ap) = "_A[" ++ show ap ++ "] = " ++ show t ++ ";"
+
+doCodegen :: TagMap -> (Name, SDecl) -> String
+doCodegen tm (n, SFun _ args _ e) =
+    cgFun tm n (length args) e
 
 name :: Name -> String
 name n =
@@ -42,13 +75,13 @@ cgVar :: LVar -> String
 cgVar (Loc i)  = loc i
 cgVar (Glob n) = name n
 
-cgFun :: Name -> Int -> SExp -> String
-cgFun n argCount e =
+cgFun :: TagMap -> Name -> Int -> SExp -> String
+cgFun tm n argCount e =
     "function " ++ name n ++ "() {" ++ cr 1 ++
     pushFrame ++
     moveArgs ++
     sizeFrame ++
-    cgBody 1 ret e ++
+    cgBody tm 1 ret e ++
     popFrame ++ "\n}\n\n\n"
   where
     frameSize = max argCount (locCountBody e)
@@ -76,24 +109,25 @@ locCountCase (SConstCase _ e)      = locCountBody e
 locCountCase (SConCase _ _ _ [] e) = locCountBody e
 locCountCase (SConCase i _ _ ns e) = max (i + length ns) (locCountBody e)
 
-cgBody :: Int -> String -> SExp -> String
-cgBody l r (SV (Glob f))        = name f ++ "();" ++
-                                  cgRet l r
-cgBody _ r (SV (Loc i))         = r ++ " = " ++ loc i ++ ";"
-cgBody l r (SApp _ f vs)        = name f ++ "(" ++ showSep ", " (map cgVar vs) ++ ");" ++
-                                  cgRet l r
-cgBody l r (SLet (Loc i) e1 e2) = cgBody l (loc i) e1 ++ cr l ++
-                                  cgBody l r e2
--- cgBody l r (SUpdate _ e)
--- cgBody l r (SProj v i)
-cgBody l r (SCon _ t _ vs)      = makeArray l r (show t : map cgVar vs)
-cgBody l r (SCase _ v cs)       = cgSwitch l r v cs
-cgBody l r (SChkCase v cs)      = cgSwitch l r v cs
-cgBody _ r (SConst c)           = r ++ " = " ++ cgConst c ++ ";"
-cgBody _ r (SOp o vs)           = r ++ " = " ++ cgOp o (map cgVar vs) ++ ";"
-cgBody _ r SNothing             = r ++ " = 0;"
--- cgBody l r (SError x)
-cgBody _ _ x                    = error $ "Expression " ++ show x ++ " is not supported"
+cgBody :: TagMap -> Int -> String -> SExp -> String
+cgBody _  l r (SV (Glob f))        = name f ++ "();" ++
+                                     cgRet l r
+cgBody _  _ r (SV (Loc i))         = r ++ " = " ++ loc i ++ ";"
+cgBody _  l r (SApp _ f vs)        = name f ++ "(" ++ showSep ", " (map cgVar vs) ++ ");" ++
+                                     cgRet l r
+cgBody tm l r (SLet (Loc i) e1 e2) = cgBody tm l (loc i) e1 ++ cr l ++
+                                     cgBody tm l r e2
+-- cgBody tm l r (SUpdate _ e)
+-- cgBody tm l r (SProj v i)
+cgBody tm _ r (SCon _ t _ [])      = r ++ " = " ++ show (tm M.! t) ++ ";"
+cgBody _  l r (SCon _ t _ vs)      = makeArray l r (show t : map cgVar vs)
+cgBody tm l r (SCase _ v cs)       = cgSwitch tm l r v cs
+cgBody tm l r (SChkCase v cs)      = cgSwitch tm l r v cs
+cgBody _  _ r (SConst c)           = r ++ " = " ++ cgConst c ++ ";"
+cgBody _  _ r (SOp o vs)           = r ++ " = " ++ cgOp o (map cgVar vs) ++ ";"
+cgBody _  _ r SNothing             = r ++ " = 0;"
+-- cgBody tm l r (SError x)
+cgBody _  _ _ x                    = error $ "Expression " ++ show x ++ " is not supported"
 
 makeArray :: Int -> String -> [String] -> String
 makeArray l r args =
@@ -114,27 +148,27 @@ cgRet :: Int -> String -> String
 cgRet l r | r == ret  = ""
           | otherwise = cr l ++ r ++ " = " ++ ret ++ ";"
 
-cgSwitch :: Int -> String -> LVar -> [SAlt] -> String
-cgSwitch l r v cs =
+cgSwitch :: TagMap -> Int -> String -> LVar -> [SAlt] -> String
+cgSwitch tm l r v cs =
     let
       v'  = cgVar v
       v'' = if any isConCase cs then "_A[" ++ v' ++ "]" else v'
     in
       "switch (" ++ v'' ++ ") {" ++ cr (l + 1) ++
-      showSep (cr (l + 2) ++ "break;" ++ cr (l + 1)) (map (cgCase (l + 2) r v') cs) ++ cr l ++
+      showSep (cr (l + 2) ++ "break;" ++ cr (l + 1)) (map (cgCase tm (l + 2) r v') cs) ++ cr l ++
       "}"
   where
     isConCase (SConCase _ _ _ _ _) = True
     isConCase _                    = False
 
-cgCase :: Int -> String -> String -> SAlt -> String
-cgCase l r _ (SDefaultCase e)        = "default:" ++ cr l ++
-                                       cgBody l r e
-cgCase l r _ (SConstCase t e)        = "case " ++ show t ++ ":" ++ cr l ++
-                                       cgBody l r e
-cgCase l r v (SConCase i0 t _ ns0 e) = "case " ++ show t ++ ":" ++ cr l ++
-                                       project 1 i0 ns0 ++
-                                       cgBody l r e
+cgCase :: TagMap -> Int -> String -> String -> SAlt -> String
+cgCase tm l r _ (SDefaultCase e)        = "default:" ++ cr l ++
+                                          cgBody tm l r e
+cgCase tm l r _ (SConstCase t e)        = "case " ++ show t ++ ":" ++ cr l ++
+                                          cgBody tm l r e
+cgCase tm l r v (SConCase i0 t _ ns0 e) = "case " ++ show t ++ ":" ++ cr l ++
+                                          project 1 i0 ns0 ++
+                                          cgBody tm l r e
   where
     project :: Int -> Int -> [Name] -> String
     project _ _ []       = ""
