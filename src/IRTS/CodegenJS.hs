@@ -32,6 +32,7 @@ cr :: Int -> String
 cr l = "\n" ++ concat (replicate l "  ")
 
 loc :: Int -> String
+loc 0 = "_S[_SP]"
 loc i = "_S[_SP + " ++ show i ++ "]"
 
 ret :: String
@@ -44,21 +45,23 @@ cgVar (Glob n) = name n
 cgFun :: Name -> Int -> SExp -> String
 cgFun n argCount e =
     "function " ++ name n ++ "() {" ++ cr 1 ++
-    pushFrame ++ cr 1 ++
+    pushFrame ++
     moveArgs ++
-    sizeFrame ++ cr 1 ++
-    cgBody 1 ret e ++ cr 1 ++
+    sizeFrame ++
+    cgBody 1 ret e ++
     popFrame ++ "\n}\n\n\n"
   where
-    pushFrame = "_PSP[_SR] = _SP; _SP = _SQ; _SR += 1;"
-    moveArgs | argCount == 0 = ""
-             | otherwise     = showSep (cr 1) (map moveArg [1..argCount]) ++ cr 1
+    frameSize = max argCount (measureBody e)
+    pushFrame | frameSize == 0 = ""
+              | otherwise      = "_PSP[_SR] = _SP; _SP = _SQ; _SR += 1;" ++ cr 1
+    moveArgs  | argCount == 0  = ""
+              | otherwise      = showSep (cr 1) (map moveArg [1..argCount]) ++ cr 1
     moveArg 1 = "_S[_SP] = arguments[0];"
     moveArg i = "_S[_SP + " ++ show (i - 1) ++ "] = arguments[" ++ show (i - 1) ++ "];"
-    frameSize = max argCount (measureBody e)
-    sizeFrame | frameSize == 0 = "_SQ = _SP;"
-              | otherwise      = "_SQ = _SP + " ++ show frameSize ++ ";"
-    popFrame  = "_SQ = _SP; _SR -= 1; _SP = _PSP[_SR];"
+    sizeFrame | frameSize == 0 = ""
+              | otherwise      = "_SQ = _SP + " ++ show frameSize ++ ";" ++ cr 1
+    popFrame  | frameSize == 0 = ""
+              | otherwise      = cr 1 ++ "_SQ = _SP; _SR -= 1; _SP = _PSP[_SR];"
 
 measureBody :: SExp -> Int
 measureBody (SV (Glob _))        = 0
