@@ -14,23 +14,6 @@ var _A  = []; // Array frame data
 var _AP = 0;  // Beginning of current array frame
 
 
-function idris_pushFrame() {
-  _PSP[_SR] = _SP;
-  _SP = _SQ;
-  _SR += 1;
-  for (var i = 0; i < arguments.length; i += 1, _SQ += 1) {
-    _S[_SQ] = arguments[i];
-  }
-}
-
-
-function idris_popFrame() {
-  _SQ = _SP;
-  _SR -= 1;
-  _SP = _PSP[_SR];
-}
-
-
 function idris_makeArray() {
   _R = _AP;
   // var log = '' + _AP;

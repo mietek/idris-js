@@ -18,8 +18,8 @@ codegenJS ci = do
       name (sMN 0 "runMain") ++ "();\n"
 
 doCodegen :: (Name, SDecl) -> String
-doCodegen (n, SFun _ args _ def) =
-    cgFun n args def
+doCodegen (n, SFun _ args _ e) =
+    cgFun n (length args) e
 
 name :: Name -> String
 name n =
@@ -41,13 +41,24 @@ cgVar :: LVar -> String
 cgVar (Loc i)  = loc i
 cgVar (Glob n) = name n
 
-cgFun :: Name -> [Name] -> SExp -> String
-cgFun n args def =
+cgFun :: Name -> Int -> SExp -> String
+cgFun n argCount e =
     "function " ++ name n ++ "() {" ++ cr 1 ++
-    (if frameSize == length args then "" else "_SQ = _SP + " ++ show frameSize ++ ";" ++ cr 1) ++
-    cgBody 1 ret def ++ "\n}\n\n\n"
+    pushFrame ++ cr 1 ++
+    moveArgs ++
+    sizeFrame ++ cr 1 ++
+    cgBody 1 ret e ++ cr 1 ++
+    popFrame ++ "\n}\n\n\n"
   where
-    frameSize = measureBody def
+    pushFrame = "_PSP[_SR] = _SP; _SP = _SQ; _SR += 1;"
+    moveArgs | argCount == 0 = ""
+             | otherwise     = showSep (cr 1) (map moveArg [1..argCount]) ++ cr 1
+    moveArg 1 = "_S[_SP] = arguments[0];"
+    moveArg i = "_S[_SP + " ++ show (i - 1) ++ "] = arguments[" ++ show (i - 1) ++ "];"
+    frameSize = max argCount (measureBody e)
+    sizeFrame | frameSize == 0 = "_SQ = _SP;"
+              | otherwise      = "_SQ = _SP + " ++ show frameSize ++ ";"
+    popFrame  = "_SQ = _SP; _SR -= 1; _SP = _PSP[_SR];"
 
 measureBody :: SExp -> Int
 measureBody (SV (Glob _))        = 0
@@ -75,14 +86,10 @@ measureCase (SConCase _ _ _ [] e) = measureBody e
 measureCase (SConCase i _ _ ns e) = max (i + length ns - 1) (measureBody e)
 
 cgBody :: Int -> String -> SExp -> String
-cgBody l r (SV (Glob f))        = "idris_pushFrame();" ++ cr l ++
-                                  name f ++ "();" ++ cr l ++
-                                  "idris_popFrame();" ++
+cgBody l r (SV (Glob f))        = name f ++ "();" ++
                                   cgRet l r
 cgBody _ r (SV (Loc i))         = r ++ " = " ++ loc i ++ ";"
-cgBody l r (SApp _ f vs)        = "idris_pushFrame(" ++ showSep ", " (map cgVar vs) ++ ");" ++ cr l ++
-                                  name f ++ "();" ++ cr l ++
-                                  "idris_popFrame();" ++
+cgBody l r (SApp _ f vs)        = name f ++ "(" ++ showSep ", " (map cgVar vs) ++ ");" ++
                                   cgRet l r
 cgBody l r (SLet (Loc i) e1 e2) = cgBody l (loc i) e1 ++ cr l ++
                                   cgBody l r e2
