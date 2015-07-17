@@ -31,13 +31,6 @@ function idris_popFrame() {
 }
 
 
-function idris_growFrame(i) {
-  if (_SQ < _SP + i) {
-    _SQ = _SP + i;
-  }
-}
-
-
 function idris_makeArray() {
   _R = _AP;
   // var log = '' + _AP;
