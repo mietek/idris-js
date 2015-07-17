@@ -65,28 +65,25 @@ cgFun n argCount e =
 
 measureBody :: SExp -> Int
 measureBody (SV (Glob _))        = 0
-measureBody (SV (Loc i))         = i
+measureBody (SV (Loc i))         = i + 1
 measureBody (SApp _ _ _)         = 0
-measureBody (SLet (Loc i) e1 e2) = max i (max (measureBody e1) (measureBody e2))
+measureBody (SLet (Loc i) e1 e2) = max (i + 1) (max (measureBody e1) (measureBody e2))
 -- measureBody (SUpdate _ _)
 -- measureBody (SProj _ _)
 measureBody (SCon _ _ _ _)       = 0
-measureBody (SCase _ _ cs)       = measureSwitch cs
-measureBody (SChkCase _ cs)      = measureSwitch cs
+measureBody (SCase _ _ cs)       = maximum (map measureCase cs)
+measureBody (SChkCase _ cs)      = maximum (map measureCase cs)
 measureBody (SConst _)           = 0
 measureBody (SOp _ _)            = 0
 measureBody SNothing             = 0
 -- measureBody (SError x)
 measureBody x                    = error $ "Expression " ++ show x ++ " is not supported"
 
-measureSwitch :: [SAlt] -> Int
-measureSwitch cs = maximum (map measureCase cs)
-
 measureCase :: SAlt -> Int
 measureCase (SDefaultCase e)      = measureBody e
 measureCase (SConstCase _ e)      = measureBody e
 measureCase (SConCase _ _ _ [] e) = measureBody e
-measureCase (SConCase i _ _ ns e) = max (i + length ns - 1) (measureBody e)
+measureCase (SConCase i _ _ ns e) = max (i + length ns) (measureBody e)
 
 cgBody :: Int -> String -> SExp -> String
 cgBody l r (SV (Glob f))        = name f ++ "();" ++
