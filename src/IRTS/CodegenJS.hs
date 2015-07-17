@@ -124,7 +124,7 @@ cgBody _  l r (SCon _ t _ vs)      = makeArray l r (show t : map cgVar vs)
 cgBody tm l r (SCase _ v cs)       = cgSwitch tm l r v cs
 cgBody tm l r (SChkCase v cs)      = cgSwitch tm l r v cs
 cgBody _  _ r (SConst c)           = r ++ " = " ++ cgConst c ++ ";"
-cgBody _  _ r (SOp o vs)           = r ++ " = " ++ cgOp o (map cgVar vs) ++ ";"
+cgBody _  _ r (SOp o vs)           = cgOp r o (map cgVar vs)
 cgBody _  _ r SNothing             = r ++ " = 0;"
 -- cgBody tm l r (SError x)
 cgBody _  _ _ x                    = error $ "Expression " ++ show x ++ " is not supported"
@@ -184,69 +184,69 @@ cgConst TheWorld          = "0"
 cgConst x | isTypeConst x = "0"
           | otherwise     = error $ "Constant " ++ show x ++ " is not supported"
 
-cgOp :: PrimFn -> [String] -> String
-cgOp (LPlus  (ATInt _)) [n, m] = "(" ++ n ++ " + "   ++ m ++ ")"
-cgOp (LMinus (ATInt _)) [n, m] = "(" ++ n ++ " - "   ++ m ++ ")"
-cgOp (LTimes (ATInt _)) [n, m] = "(" ++ n ++ " * "   ++ m ++ ")"
--- cgOp LUDiv
--- cgOp LSDiv
--- cgOp LURem
--- cgOp LSRem
--- cgOp LAnd
--- cgOp LOr
--- cgOp LXOr
--- cgOp LCompl
--- cgOp LSHL
--- cgOp LLSHR
--- cgOp LASHR
-cgOp (LEq    (ATInt _)) [n, m] = "(" ++ n ++ " === " ++ m ++ " ? 1 : 0)"
--- cgOp LLt
--- cgOp LLe
--- cgOp LGt
--- cgOp LGe
-cgOp (LSLt   (ATInt _)) [n, m] = "(" ++ n ++ " < "   ++ m ++ ")"
-cgOp (LSLe   (ATInt _)) [n, m] = "(" ++ n ++ " <= "  ++ m ++ ")"
-cgOp (LSGt   (ATInt _)) [n, m] = "(" ++ n ++ " > "   ++ m ++ ")"
-cgOp (LSGe   (ATInt _)) [n, m] = "(" ++ n ++ " >= "  ++ m ++ ")"
-cgOp (LSExt  _ _)       [n]    =        n
--- cgOp LZExt
--- cgOp LTrunc
-cgOp LStrConcat         [s, t] = "(" ++ s ++ " + "   ++ t ++ ")"
-cgOp LStrLt             [s, t] = "(" ++ s ++ " < "   ++ t ++ ")"
-cgOp LStrEq             [s, t] = "(" ++ s ++ " === " ++ t ++ " ? 1 : 0)"
-cgOp LStrLen            [s]    =        s ++ ".length"
--- cgOp LIntFloat
--- cgOp LFloatInt
-cgOp (LIntStr _)        [n]    = "('' + " ++ n ++ ")"
--- cgOp LStrInt
--- cgOp LFloatStr
--- cgOp LStrFloat
--- cgOp LChInt
--- cgOp LIntCh
--- cgOp LBitCast
--- cgOp LFExp
--- cgOp LFLog
--- cgOp LFSin
--- cgOp LFCos
--- cgOp LFTan
--- cgOp LFASin
--- cgOp LFACos
--- cgOp LFATan
--- cgOp LFSqrt
--- cgOp LFFloor
--- cgOp LFCeil
--- cgOp LFNegate
--- cgOp LStrHead
--- cgOp LStrTail
--- cgOp LStrCons
--- cgOp LStrIndex
--- cgOp LStrRev
--- cgOp LReadStr
-cgOp LWriteStr          [_, s] = "idris_writeStr(" ++ s ++ ")"
--- cgOp LSystemInfo
--- cgOp LFork
--- cgOp LPar
--- cgOp LExternal
--- cgOp LNoOp
--- cgOp o _                       = error $ "Operator " ++ show o ++ " is not supported"
-cgOp o _                       = "idris_error('Operator " ++ show o ++ " is not supported')"
+cgOp :: String -> PrimFn -> [String] -> String
+cgOp r (LPlus  (ATInt _)) [n, m] = r ++ " = "  ++ n ++ " + "   ++ m ++ ";"
+cgOp r (LMinus (ATInt _)) [n, m] = r ++ " = "  ++ n ++ " - "   ++ m ++ ";"
+cgOp r (LTimes (ATInt _)) [n, m] = r ++ " = "  ++ n ++ " * "   ++ m ++ ";"
+-- cgOp r LUDiv
+-- cgOp r LSDiv
+-- cgOp r LURem
+-- cgOp r LSRem
+-- cgOp r LAnd
+-- cgOp r LOr
+-- cgOp r LXOr
+-- cgOp r LCompl
+-- cgOp r LSHL
+-- cgOp r LLSHR
+-- cgOp r LASHR
+cgOp r (LEq    (ATInt _)) [n, m] = r ++ " = (" ++ n ++ " === " ++ m ++ ") ? 1 : 0;"
+-- cgOp r LLt
+-- cgOp r LLe
+-- cgOp r LGt
+-- cgOp r LGe
+cgOp r (LSLt   (ATInt _)) [n, m] = r ++ " = (" ++ n ++ " < "   ++ m ++ ") ? 1 : 0;"
+cgOp r (LSLe   (ATInt _)) [n, m] = r ++ " = (" ++ n ++ " <= "  ++ m ++ ") ? 1 : 0;"
+cgOp r (LSGt   (ATInt _)) [n, m] = r ++ " = (" ++ n ++ " > "   ++ m ++ ") ? 1 : 0;"
+cgOp r (LSGe   (ATInt _)) [n, m] = r ++ " = (" ++ n ++ " >= "  ++ m ++ ") ? 1 : 0;"
+cgOp r (LSExt  _ _)       [n]    = r ++ " = "  ++ n ++ ";"
+-- cgOp r LZExt
+-- cgOp r LTrunc
+cgOp r LStrConcat         [s, t] = r ++ " = "  ++ s ++ " + "   ++ t ++ ";"
+cgOp r LStrLt             [s, t] = r ++ " = (" ++ s ++ " < "   ++ t ++ ") ? 1 : 0;"
+cgOp r LStrEq             [s, t] = r ++ " = (" ++ s ++ " === " ++ t ++ ") ? 1 : 0;"
+cgOp r LStrLen            [s]    = r ++ " = "  ++ s ++ ".length;"
+-- cgOp r LIntFloat
+-- cgOp r LFloatInt
+cgOp r (LIntStr _)        [n]    = r ++ " = '' + " ++ n ++ ";"
+-- cgOp r LStrInt
+-- cgOp r LFloatStr
+-- cgOp r LStrFloat
+-- cgOp r LChInt
+-- cgOp r LIntCh
+-- cgOp r LBitCast
+-- cgOp r LFExp
+-- cgOp r LFLog
+-- cgOp r LFSin
+-- cgOp r LFCos
+-- cgOp r LFTan
+-- cgOp r LFASin
+-- cgOp r LFACos
+-- cgOp r LFATan
+-- cgOp r LFSqrt
+-- cgOp r LFFloor
+-- cgOp r LFCeil
+-- cgOp r LFNegate
+-- cgOp r LStrHead
+-- cgOp r LStrTail
+-- cgOp r LStrCons
+-- cgOp r LStrIndex
+-- cgOp r LStrRev
+-- cgOp r LReadStr
+cgOp _ LWriteStr          [_, s] = "console.log(" ++ s ++ ");"
+-- cgOp r LSystemInfo
+-- cgOp r LFork
+-- cgOp r LPar
+-- cgOp r LExternal
+-- cgOp r LNoOp
+-- cgOp _ o _                       = error $ "Operator " ++ show o ++ " is not supported"
+cgOp _ o _                       = "console.error('Operator " ++ show o ++ " is not supported');"
