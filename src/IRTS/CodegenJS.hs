@@ -54,9 +54,13 @@ loc 0 = "_S[_SP]"
 loc i = "_S[_SP + " ++ show i ++ "]"
 
 
+cgLoc :: Int -> String
+cgLoc i = loc i
+
+
 cgVar :: LVar -> String
-cgVar (Loc i)  = loc i
-cgVar (Glob n) = name n
+cgVar (Loc i) = loc i
+cgVar x       = error $ "Variable " ++ show x ++ " is not supported"
 
 
 cgFun :: TagMap -> Name -> Int -> Int -> SExp -> String
@@ -84,10 +88,10 @@ cgFun tm n argCount locCount e =
 cgBody :: TagMap -> Int -> String -> SExp -> String
 cgBody _  l r (SV (Glob f))        = name f ++ "();" ++
                                      cgRet l r
-cgBody _  _ r (SV (Loc i))         = r ++ " = " ++ loc i ++ ";"
+cgBody _  _ r (SV v@(Loc _))       = r ++ " = " ++ cgVar v ++ ";"
 cgBody _  l r (SApp _ f vs)        = name f ++ "(" ++ showSep ", " (map cgVar vs) ++ ");" ++
                                      cgRet l r
-cgBody tm l r (SLet (Loc i) e1 e2) = cgBody tm l (loc i) e1 ++ cr l ++
+cgBody tm l r (SLet (Loc i) e1 e2) = cgBody tm l (cgLoc i) e1 ++ cr l ++
                                      cgBody tm l r e2
 -- cgBody tm l r (SUpdate _ e)
 -- cgBody tm l r (SProj v i)
@@ -148,7 +152,7 @@ cgCase tm l r v (SConCase i0 t _ ns0 e) = "case " ++ show t ++ ":" ++ cr l ++
   where
     project :: Int -> Int -> [Name] -> String
     project _ _ []       = ""
-    project k i (_ : ns) = loc i ++ " = _A[" ++ v ++ " + " ++ show k ++ "];" ++ cr l ++
+    project k i (_ : ns) = cgLoc i ++ " = _A[" ++ v ++ " + " ++ show k ++ "];" ++ cr l ++
                            project (k + 1) (i + 1) ns
 
 
