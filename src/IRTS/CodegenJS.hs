@@ -1,7 +1,6 @@
 module IRTS.CodegenJS (codegenJS) where
 
 import Data.Char
-import qualified Data.IntMap.Strict as M
 import IRTS.CodegenCommon
 import IRTS.CodegenUtils
 import IRTS.Lang
@@ -24,15 +23,18 @@ codegenJS ci = do
 
 
 cgTags :: TagMap -> String
-cgTags tm = showSep "\n" (map tag (M.toAscList tm)) ++ "\n" ++
-            "_AP = " ++ show (M.size tm) ++ ";\n"
+cgTags tm = showSep "\n" (map tag (askTags tm)) ++ "\n" ++
+            "_AP = " ++ show (askTagCount tm) ++ ";\n"
   where
     tag (t, ap) = "_A[" ++ show ap ++ "] = " ++ show t ++ ";"
 
 
 doCodegen :: TagMap -> (Name, SDecl) -> String
-doCodegen tm (n, SFun _ args _ e) =
-    cgFun tm n (length args) e
+doCodegen tm (n, f@(SFun _ args _ e)) =
+    cgFun tm n argCount locCount e
+  where
+    argCount = length args
+    locCount = countLocs f
 
 
 name :: Name -> String
@@ -61,8 +63,8 @@ cgVar (Loc i)  = loc i
 cgVar (Glob n) = name n
 
 
-cgFun :: TagMap -> Name -> Int -> SExp -> String
-cgFun tm n argCount e =
+cgFun :: TagMap -> Name -> Int -> Int -> SExp -> String
+cgFun tm n argCount locCount e =
     "function " ++ name n ++ "() {" ++ cr 1 ++
     pushFrame ++
     moveArgs ++
@@ -70,7 +72,7 @@ cgFun tm n argCount e =
     cgBody tm 1 ret e ++
     popFrame ++ "\n}\n\n\n"
   where
-    frameSize = max argCount (locCountBody e)
+    frameSize = max argCount locCount
     pushFrame | frameSize == 0 = ""
               | otherwise      = "_PSP[_SR] = _SP; _SP = _SQ; _SR += 1;" ++ cr 1
     moveArgs  | argCount == 0  = ""
@@ -93,7 +95,7 @@ cgBody tm l r (SLet (Loc i) e1 e2) = cgBody tm l (loc i) e1 ++ cr l ++
                                      cgBody tm l r e2
 -- cgBody tm l r (SUpdate _ e)
 -- cgBody tm l r (SProj v i)
-cgBody tm _ r (SCon _ t _ [])      = r ++ " = " ++ show (tm M.! t) ++ ";"
+cgBody tm _ r (SCon _ t _ [])      = r ++ " = " ++ show (askTag tm t) ++ ";"
 cgBody _  l r (SCon _ t _ vs)      = makeArray l r (show t : map cgVar vs)
 cgBody tm l r (SCase _ v cs)       = cgSwitch tm l r v cs
 cgBody tm l r (SChkCase v cs)      = cgSwitch tm l r v cs
