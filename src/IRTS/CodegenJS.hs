@@ -18,23 +18,8 @@ codegenJS ci = do
     writeFile (outputFile ci) $
       prelude ++ "\n\n" ++
       cgTags tm ++ "\n\n" ++
-      concatMap (doCodegen tm) (simpleDecls ci) ++
+      concatMap (cgFun tm) (simpleDecls ci) ++
       name (sMN 0 "runMain") ++ "();\n"
-
-
-cgTags :: TagMap -> String
-cgTags tm = showSep "\n" (map tag (askTags tm)) ++ "\n" ++
-            "_AP = " ++ show (askTagCount tm) ++ ";\n"
-  where
-    tag (t, ap) = "_A[" ++ show ap ++ "] = " ++ show t ++ ";"
-
-
-doCodegen :: TagMap -> (Name, SDecl) -> String
-doCodegen tm (n, f@(SFun _ args _ e)) =
-    cgFun tm n argCount locCount e
-  where
-    argCount = length args
-    locCount = countLocs f
 
 
 name :: Name -> String
@@ -63,8 +48,15 @@ cgVar (Loc i) = loc i
 cgVar x       = error $ "Variable " ++ show x ++ " is not supported"
 
 
-cgFun :: TagMap -> Name -> Int -> Int -> SExp -> String
-cgFun tm n argCount locCount e =
+cgTags :: TagMap -> String
+cgTags tm = showSep "\n" (map tag (askTags tm)) ++ "\n" ++
+            "_AP = " ++ show (askTagCount tm) ++ ";\n"
+  where
+    tag (t, ap) = "_A[" ++ show ap ++ "] = " ++ show t ++ ";"
+
+
+cgFun :: TagMap -> (Name, SDecl) -> String
+cgFun tm (n, f@(SFun _ args _ e)) =
     "function " ++ name n ++ "() {" ++ cr 1 ++
     pushFrame ++
     moveArgs ++
@@ -72,6 +64,8 @@ cgFun tm n argCount locCount e =
     cgBody tm 1 "_R" e ++
     popFrame ++ "\n}\n\n\n"
   where
+    argCount  = length args
+    locCount  = countLocs f
     frameSize = max argCount locCount
     pushFrame | frameSize == 0 = ""
               | otherwise      = "_PSP[_SR] = _SP; _SP = _SQ; _SR += 1;" ++ cr 1
