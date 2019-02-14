@@ -1,3 +1,10 @@
+-------------------------------------------------------------------------------
+
+This project is no longer maintained.
+
+-------------------------------------------------------------------------------
+
+
 _idris-js_
 ==========
 
@@ -27,4 +34,4 @@ Output: [`pythag.js`](https://gist.github.com/mietek/2b8f086259b925039459)
 About
 -----
 
-Made by [Miëtek Bak](https://mietek.io/).  Published under the [MIT X11 license](LICENSE.md).
+Made by [Miëtek Bak](https://mietek.io/).  Published under the BSD license.
